@@ -116,30 +116,33 @@ impl HttpServerMiddleware for MyMiddleware {
                 if key.eq_ignore_ascii_case("content-encoding") {
                     if v.contains("gzip") {
                         gzip = true;
+                        continue;
                     }
                 }
                 builder = builder.header(key.to_string(), v.to_string());
             }
         }
 
-        let mut body = response.receive_body().await.unwrap();
+        let body = response.receive_body().await.unwrap();
 
-        if gzip {
+        let body_to_print = if gzip {
             let mut decoder = GzDecoder::new(body.as_slice());
 
             let mut decoded = Vec::new();
             decoder.read_to_end(&mut decoded).unwrap();
 
-            body = decoded
-        }
+            decoded
+        } else {
+            body.clone()
+        };
 
         println!("Response Body Start:");
-        match std::str::from_utf8(body.as_slice()) {
+        match std::str::from_utf8(body_to_print.as_slice()) {
             Ok(body_as_str) => {
                 println!("{:?}", body_as_str);
             }
             Err(_) => {
-                println!("{}", body.into_base64());
+                println!("{}", body_to_print.into_base64());
             }
         }
 
