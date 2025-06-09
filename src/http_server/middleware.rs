@@ -138,7 +138,7 @@ impl HttpServerMiddleware for MyMiddleware {
         println!("Response Body Start:");
         match std::str::from_utf8(body_to_print.as_slice()) {
             Ok(body_as_str) => {
-                println!("{:?}", body_as_str);
+                println!("{}", body_as_str);
             }
             Err(_) => {
                 println!("{}", body_to_print.into_base64());
