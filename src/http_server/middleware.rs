@@ -116,7 +116,6 @@ impl HttpServerMiddleware for MyMiddleware {
                 if key.eq_ignore_ascii_case("content-encoding") {
                     if v.contains("gzip") {
                         gzip = true;
-                        continue;
                     }
                 }
                 builder = builder.header(key.to_string(), v.to_string());
