@@ -894,6 +894,7 @@ name = "my-http-server-sniffer"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "flate2",
  "flurl",
  "my-http-server",
  "my-logger",

@@ -1,3 +1,6 @@
+use std::io::Read;
+
+use flate2::bufread::GzDecoder;
 use flurl::{
     FlUrl,
     hyper::{self, Method},
@@ -104,14 +107,36 @@ impl HttpServerMiddleware for MyMiddleware {
         let mut builder = hyper::Response::builder().status(response.get_status_code());
 
         println!("Response Headers:");
+
+        let mut gzip = false;
         for (key, value) in response.get_headers() {
             if let Some(v) = value {
                 println!("{}:{}", key, v);
+
+                if key.eq_ignore_ascii_case("content-encoding") {
+                    if v.contains("gzip") {
+                        gzip = true;
+                    }
+                }
                 builder = builder.header(key.to_string(), v.to_string());
             }
         }
 
-        let body = response.receive_body().await.unwrap();
+        let mut body_as_stream = response.get_body_as_stream();
+
+        let mut body = Vec::new();
+
+        while let Some(chunk) = body_as_stream.get_next_chunk().await.unwrap() {
+            if gzip {
+                let mut decoder = GzDecoder::new(chunk.as_slice());
+
+                let mut decompressed = Vec::new();
+                decoder.read(&mut decompressed).unwrap();
+                body.extend_from_slice(&decompressed);
+            } else {
+                body.extend_from_slice(&chunk);
+            }
+        }
 
         println!("Response Body Start:");
         match std::str::from_utf8(body.as_slice()) {
