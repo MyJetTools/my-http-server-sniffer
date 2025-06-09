@@ -122,20 +122,15 @@ impl HttpServerMiddleware for MyMiddleware {
             }
         }
 
-        let mut body_as_stream = response.get_body_as_stream();
+        let mut body = response.receive_body().await.unwrap();
 
-        let mut body = Vec::new();
+        if gzip {
+            let mut decoder = GzDecoder::new(body.as_slice());
 
-        while let Some(chunk) = body_as_stream.get_next_chunk().await.unwrap() {
-            if gzip {
-                let mut decoder = GzDecoder::new(chunk.as_slice());
+            let mut decoded = Vec::new();
+            decoder.read_to_end(&mut decoded).unwrap();
 
-                let mut decompressed = Vec::new();
-                decoder.read(&mut decompressed).unwrap();
-                body.extend_from_slice(&decompressed);
-            } else {
-                body.extend_from_slice(&chunk);
-            }
+            body = decoded
         }
 
         println!("Response Body Start:");
