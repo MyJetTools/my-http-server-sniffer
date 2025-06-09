@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use flurl::{
     FlUrl,
     hyper::{self, Method},
@@ -8,6 +6,7 @@ use my_http_server::{
     HttpContext, HttpFailResult, HttpOkResult, HttpOutput, HttpRequestHeaders,
     HttpServerMiddleware, my_hyper_utils::ToMyHttpResponse,
 };
+use rust_extensions::base64::IntoBase64;
 
 pub struct MyMiddleware {
     remote_url: String,
@@ -34,15 +33,27 @@ impl HttpServerMiddleware for MyMiddleware {
         &self,
         ctx: &mut HttpContext,
     ) -> Option<Result<HttpOkResult, HttpFailResult>> {
+        println!("----- New Request");
+        println!(
+            "[{}] {}",
+            ctx.request.method,
+            ctx.request.get_path_and_query()
+        );
+        println!("Headers:");
+
+        let headers = ctx.request.get_headers().to_hash_map();
+
+        for (key, value) in headers.iter() {
+            println!("{}:{}", key, value);
+        }
+
         let response = match ctx.request.method {
             Method::GET => {
                 let url = format!("{}{}", self.remote_url, ctx.request.get_path_and_query());
 
-                println!("Url: {}", url);
-
                 let mut fl_url = FlUrl::new(url);
 
-                for (key, value) in ctx.request.get_headers().to_hash_map() {
+                for (key, value) in headers {
                     if !key.eq_ignore_ascii_case("host") {
                         fl_url = fl_url.with_header(key, value);
                     }
@@ -54,13 +65,25 @@ impl HttpServerMiddleware for MyMiddleware {
                 let url = format!("{}{}", self.remote_url, ctx.request.get_path_and_query());
                 let mut fl_url = FlUrl::new(url);
 
-                for (key, value) in ctx.request.get_headers().to_hash_map() {
-                    fl_url = fl_url.with_header(key, value);
+                for (key, value) in headers {
+                    if !key.eq_ignore_ascii_case("host") {
+                        fl_url = fl_url.with_header(key, value);
+                    }
                 }
 
                 let body = ctx.request.get_body().await.unwrap().as_slice();
 
-                println!("{:?}", std::str::from_utf8(body));
+                println!("Request Body Start:");
+                match std::str::from_utf8(body) {
+                    Ok(body_as_str) => {
+                        println!("{:?}", body_as_str);
+                    }
+                    Err(_) => {
+                        println!("{}", body.into_base64());
+                    }
+                }
+
+                println!("Request Body End:");
                 fl_url.post(Some(body.to_vec())).await
             }
 
@@ -76,15 +99,33 @@ impl HttpServerMiddleware for MyMiddleware {
 
         let response = response.unwrap();
 
+        println!("Response Status: {}", response.get_status_code());
+
         let mut builder = hyper::Response::builder().status(response.get_status_code());
 
+        println!("Response Headers:");
         for (key, value) in response.get_headers() {
             if let Some(v) = value {
+                println!("{}:{}", key, v);
                 builder = builder.header(key.to_string(), v.to_string());
             }
         }
 
         let body = response.receive_body().await.unwrap();
+
+        println!("Response Body Start:");
+        match std::str::from_utf8(body.as_slice()) {
+            Ok(body_as_str) => {
+                println!("{:?}", body_as_str);
+            }
+            Err(_) => {
+                println!("{}", body.into_base64());
+            }
+        }
+
+        println!("Response Body End:");
+
+        println!("----------");
 
         let response = (builder, body).to_my_http_response();
 
