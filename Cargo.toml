@@ -1,0 +1,21 @@
+[package]
+name = "my-http-server-sniffer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+my-http-server = { tag = "0.8.2", git = "https://github.com/MyJetTools/my-http-server.git", features = [
+    "macros",
+    "controllers",
+    "static-files",
+] }
+
+my-logger = { tag = "1.2.1", git = "https://github.com/MyJetTools/my-logger.git" }
+
+rust-extensions = { tag = "0.1.5", git = "https://github.com/MyJetTools/rust-extensions.git", features = [
+    "with-tokio",
+    "base64",
+] }
+tokio = { version = "*" }
+async-trait = "*"
+flurl = { tag = "0.6.1", git = "https://github.com/MyJetTools/fl-url.git" }
